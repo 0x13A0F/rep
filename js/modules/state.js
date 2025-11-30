@@ -17,7 +17,10 @@ export const state = {
     shouldPauseBulk: false,
     // Diff State
     regularRequestBaseline: null,
-    currentResponse: null
+    currentResponse: null,
+    // Group Starring
+    starredPages: new Set(),
+    starredDomains: new Set()
 };
 
 export function addRequest(request) {
