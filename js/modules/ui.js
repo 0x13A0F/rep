@@ -115,10 +115,56 @@ export function initUI() {
             return;
         }
 
+        // 1. Identify Uncategorized Requests
+        const uncategorizedRequests = [];
+        domainRequests.forEach((req) => {
+            const globalIdx = state.requests.indexOf(req);
+            if (!state.attackSurfaceCategories[globalIdx]) {
+                uncategorizedRequests.push({ req, globalIdx });
+            }
+        });
+
+        const aiBtn = groupElement.querySelector('.group-ai-btn');
+
+        // 2. If all categorized, just show view
+        if (uncategorizedRequests.length === 0) {
+            state.domainsWithAttackSurface.add(domain);
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.classList.add('analyzed');
+                aiBtn.title = 'Show Normal View';
+                aiBtn.textContent = '📋';
+            }
+            filterRequests();
+            return;
+        }
+
+        // 3. Deduplication for new requests
+        const uniqueRequestsMap = new Map(); // Signature -> { req, globalIdx }
+        const signatureToGlobalIndices = new Map(); // Signature -> [globalIdx, ...]
+
+        uncategorizedRequests.forEach(item => {
+            const urlObj = new URL(item.req.request.url);
+            const path = urlObj.pathname;
+            const params = Array.from(urlObj.searchParams.keys()).sort().join(',');
+            const signature = `${item.req.request.method} ${path} [${params}]`;
+
+            if (!uniqueRequestsMap.has(signature)) {
+                uniqueRequestsMap.set(signature, item);
+            }
+
+            if (!signatureToGlobalIndices.has(signature)) {
+                signatureToGlobalIndices.set(signature, []);
+            }
+            signatureToGlobalIndices.get(signature).push(item.globalIdx);
+        });
+
+        const requestsToAnalyze = Array.from(uniqueRequestsMap.values()).map(item => item.req);
+
         const confirmed = confirm(
-            `Analyze ${domainRequests.length} request${domainRequests.length > 1 ? 's' : ''} from ${domain}?\n\n` +
-            `This will categorize requests by attack surface using your configured AI provider.\n` +
-            `Estimated tokens: ~${domainRequests.length * 100}`
+            `Analyze ${requestsToAnalyze.length} new unique requests (from ${uncategorizedRequests.length} total new)?\n\n` +
+            `Existing categorized requests: ${domainRequests.length - uncategorizedRequests.length}\n` +
+            `Estimated tokens: ~${requestsToAnalyze.length * 100}`
         );
 
         if (!confirmed) return;
@@ -126,7 +172,6 @@ export function initUI() {
         state.isAnalyzingAttackSurface = true;
 
         // Show loading on AI button
-        const aiBtn = groupElement.querySelector('.group-ai-btn');
         if (aiBtn) {
             aiBtn.disabled = true;
             aiBtn.innerHTML = '⏳';
@@ -134,20 +179,23 @@ export function initUI() {
         }
 
         try {
-            // Create a mapping of domain request indices to global indices
-            const requestIndexMap = {};
-            domainRequests.forEach((req) => {
-                const globalIndex = state.requests.indexOf(req);
-                const localIndex = domainRequests.indexOf(req);
-                requestIndexMap[localIndex] = globalIndex;
-            });
-
-            await analyzeAttackSurface(domainRequests, (progress) => {
+            await analyzeAttackSurface(requestsToAnalyze, (progress) => {
                 if (progress.status === 'complete') {
-                    // Map local indices back to global indices
-                    Object.entries(progress.categories).forEach(([localIdx, categoryData]) => {
-                        const globalIdx = requestIndexMap[parseInt(localIdx)];
-                        state.attackSurfaceCategories[globalIdx] = categoryData;
+                    // Map results back to all matching requests
+                    Object.entries(progress.categories).forEach(([analyzedIdx, categoryData]) => {
+                        const representativeItem = Array.from(uniqueRequestsMap.values())[parseInt(analyzedIdx)];
+
+                        // Reconstruct signature to find all matching requests
+                        const urlObj = new URL(representativeItem.req.request.url);
+                        const path = urlObj.pathname;
+                        const params = Array.from(urlObj.searchParams.keys()).sort().join(',');
+                        const signature = `${representativeItem.req.request.method} ${path} [${params}]`;
+
+                        // Apply to all matching requests
+                        const globalIndices = signatureToGlobalIndices.get(signature) || [];
+                        globalIndices.forEach(globalIdx => {
+                            state.attackSurfaceCategories[globalIdx] = categoryData;
+                        });
                     });
 
                     cacheCategories(state.attackSurfaceCategories);
