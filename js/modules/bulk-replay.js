@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { elements } from './ui.js';
 import { generateAttackRequests } from './attack-engine.js';
-import { formatBytes, highlightHTTP, renderDiff } from './utils.js';
+import { formatBytes, highlightHTTP, renderDiff, escapeHtml } from './utils.js';
 
 export function setupBulkReplay() {
     const bulkReplayBtn = document.getElementById('bulk-replay-btn');
@@ -384,7 +384,7 @@ export function setupBulkReplay() {
             row.dataset.index = i;
             row.innerHTML = `
                 <td>${i + 1}</td>
-                <td>${attackRequests[i].payloads.join(', ')}</td>
+                <td>${escapeHtml(attackRequests[i].payloads.join(', '))}</td>
                 <td class="status-cell">Sending...</td>
                 <td class="size-cell">-</td>
                 <td class="time-cell">-</td>
