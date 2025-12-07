@@ -359,6 +359,264 @@ export function initExtractorUI() {
         });
     }
 
+    // Response Search Logic
+    const responseSearchBtn = document.getElementById('response-search-btn');
+    const responseSearchInput = document.getElementById('response-search-input');
+    const responseSearchRegexBtn = document.getElementById('response-search-regex-btn');
+    const responseSearchAiBtn = document.getElementById('response-search-ai-btn');
+    const responseSearchFetch = document.getElementById('response-search-fetch');
+    const responseSearchResults = document.getElementById('response-search-results');
+
+    let isRegexMode = false;
+
+    // Initial State: Hide AI button
+    if (responseSearchAiBtn) {
+        responseSearchAiBtn.style.display = 'none';
+    }
+
+    // Toggle Regex Mode
+    if (responseSearchRegexBtn) {
+        responseSearchRegexBtn.addEventListener('click', () => {
+            isRegexMode = !isRegexMode;
+            responseSearchRegexBtn.classList.toggle('active', isRegexMode);
+            responseSearchInput.placeholder = isRegexMode ? 'Search with Regex...' : 'Search in responses...';
+
+            // Toggle AI Button
+            if (responseSearchAiBtn) {
+                responseSearchAiBtn.style.display = isRegexMode ? 'flex' : 'none';
+            }
+        });
+    }
+
+    // AI Regex Generation
+    if (responseSearchAiBtn) {
+        responseSearchAiBtn.addEventListener('click', async () => {
+            const description = responseSearchInput.value.trim();
+            if (!description) {
+                alert('Please enter a description of what you want to find (e.g., "email addresses").');
+                return;
+            }
+
+            // UI Loading State
+            const originalIcon = responseSearchAiBtn.innerHTML;
+            responseSearchAiBtn.innerHTML = '<span class="loading-spinner-small">⏳</span>';
+            responseSearchAiBtn.disabled = true;
+            responseSearchInput.disabled = true;
+
+            try {
+                const { streamExplanationWithSystem, getAISettings } = await import('./ai.js');
+                const { apiKey } = getAISettings();
+
+                if (!apiKey) {
+                    alert('Please configure your AI API Key in Settings first.');
+                    return;
+                }
+
+                const systemPrompt = "You are a regex expert. Convert the user's description into a JavaScript-compatible Regular Expression. Return ONLY the regex pattern (without slashes or flags). Do not include any explanation.";
+                let generatedRegex = '';
+
+                await streamExplanationWithSystem(apiKey, getAISettings().model, systemPrompt, description, (text) => {
+                    generatedRegex = text.trim();
+                }, getAISettings().provider);
+
+                // Clean up result (remove backticks or extra text if any)
+                generatedRegex = generatedRegex.replace(/^`+|`+$/g, '').trim();
+
+                if (generatedRegex) {
+                    responseSearchInput.value = generatedRegex;
+
+                    // Enable Regex Mode automatically
+                    if (!isRegexMode) {
+                        isRegexMode = true;
+                        if (responseSearchRegexBtn) responseSearchRegexBtn.classList.add('active');
+                        responseSearchInput.placeholder = 'Search with Regex...';
+                    }
+                }
+
+            } catch (e) {
+                console.error('AI Regex generation failed:', e);
+                alert('Failed to generate regex: ' + e.message);
+            } finally {
+                responseSearchAiBtn.innerHTML = originalIcon;
+                responseSearchAiBtn.disabled = false;
+                responseSearchInput.disabled = false;
+                responseSearchInput.focus();
+            }
+        });
+    }
+
+    if (responseSearchBtn) {
+        responseSearchBtn.addEventListener('click', async () => {
+            const searchTerm = responseSearchInput.value;
+            if (!searchTerm) return;
+
+            const fetchFresh = responseSearchFetch.checked;
+            const selectedDomain = domainFilter ? domainFilter.value : 'all';
+
+            // UI Loading State
+            responseSearchBtn.disabled = true;
+            responseSearchBtn.textContent = 'Searching...';
+
+            // Initialize Results Table
+            responseSearchResults.innerHTML = `
+                <table class="secrets-table">
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>File</th>
+                            <th>Status</th>
+                            <th>Match Preview</th>
+                        </tr>
+                    </thead>
+                    <tbody id="response-search-tbody">
+                    </tbody>
+                </table>
+            `;
+            const tbody = document.getElementById('response-search-tbody');
+
+            // Show progress bar if fetching
+            if (fetchFresh) {
+                extractorProgress.style.display = 'block';
+                extractorProgressBar.style.width = '0%';
+                extractorProgressText.textContent = 'Preparing requests...';
+            }
+
+            try {
+                // Import state to access requests
+                const { state } = await import('./state.js');
+
+                // Filter requests
+                const requestsToSearch = [];
+                const seenSignatures = new Set();
+
+                state.requests.forEach(req => {
+                    // Domain Filter
+                    if (selectedDomain !== 'all' && getDomainFromUrl(req.pageUrl || req.request.url) !== selectedDomain) {
+                        return;
+                    }
+
+                    // Deduplication
+                    const signature = `${req.request.method}|${req.request.url}|${req.request.postData ? req.request.postData.text : ''}`;
+                    if (!seenSignatures.has(signature)) {
+                        seenSignatures.add(signature);
+                        requestsToSearch.push(req);
+                    }
+                });
+
+                if (requestsToSearch.length === 0) {
+                    responseSearchResults.innerHTML = '<div class="empty-state">No requests found to search.</div>';
+                    return;
+                }
+
+                let processed = 0;
+                let matchCount = 0;
+
+                // Helper to check match
+                const checkMatch = (content, url, method, status) => {
+                    let matchFound = false;
+                    let matchSnippet = '';
+
+                    if (isRegexMode) {
+                        try {
+                            const regex = new RegExp(searchTerm, 'g');
+                            const match = regex.exec(content);
+                            if (match) {
+                                matchFound = true;
+                                const start = Math.max(0, match.index - 20);
+                                const end = Math.min(content.length, match.index + match[0].length + 20);
+                                matchSnippet = (start > 0 ? '...' : '') + content.substring(start, end) + (end < content.length ? '...' : '');
+                            }
+                        } catch (e) {
+                            console.error('Invalid regex:', e);
+                            return false;
+                        }
+                    } else {
+                        const index = content.indexOf(searchTerm);
+                        if (index !== -1) {
+                            matchFound = true;
+                            const start = Math.max(0, index - 20);
+                            const end = Math.min(content.length, index + searchTerm.length + 20);
+                            matchSnippet = (start > 0 ? '...' : '') + content.substring(start, end) + (end < content.length ? '...' : '');
+                        }
+                    }
+
+                    if (matchFound) {
+                        matchCount++;
+                        const methodClass = method === 'POST' || method === 'PUT' || method === 'DELETE' ? 'method-write' : 'method-read';
+                        const statusClass = status >= 200 && status < 300 ? 'status-2xx' : (status >= 300 && status < 400 ? 'status-3xx' : (status >= 400 && status < 500 ? 'status-4xx' : 'status-5xx'));
+                        const fileName = url.split('/').pop() || url;
+
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><span class="http-method ${methodClass}">${escapeHtml(method)}</span></td>
+                            <td class="secret-file"><a href="${escapeHtml(url)}" target="_blank" title="${escapeHtml(url)}">${escapeHtml(fileName)}</a></td>
+                            <td><span class="status-badge ${statusClass}">${status}</span></td>
+                            <td class="secret-match" title="${escapeHtml(matchSnippet)}">${escapeHtml(matchSnippet)}</td>
+                        `;
+                        tbody.appendChild(row);
+                    }
+                    return matchFound;
+                };
+
+                for (const req of requestsToSearch) {
+                    let content = '';
+                    let status = req.response.status;
+
+                    if (fetchFresh) {
+                        try {
+                            const response = await fetch(req.request.url, {
+                                method: req.request.method,
+                                headers: req.request.headers.reduce((acc, h) => ({ ...acc, [h.name]: h.value }), {}),
+                                body: req.request.postData ? req.request.postData.text : undefined
+                            });
+                            content = await response.text();
+                            status = response.status;
+                        } catch (e) {
+                            console.error('Fetch failed for', req.request.url, e);
+                            content = ''; // Skip if fetch fails
+                        }
+                    } else {
+                        // Use stored content if available (HAR)
+                        // Note: HAR content.text might be unavailable if not captured fully
+                        content = req.response.content.text || '';
+
+                        // If empty, try to get from network (if supported by devtools API in this context)
+                        if (!content && req.getContent) {
+                            content = await new Promise(resolve => req.getContent(resolve));
+                        }
+                    }
+
+                    if (content) {
+                        checkMatch(content, req.request.url, req.request.method, status);
+                    }
+
+                    processed++;
+                    if (fetchFresh) {
+                        const percent = Math.round((processed / requestsToSearch.length) * 100);
+                        extractorProgressBar.style.width = `${percent}%`;
+                        extractorProgressText.textContent = `Searching ${processed}/${requestsToSearch.length}...`;
+                    }
+                }
+
+                if (matchCount === 0) {
+                    responseSearchResults.innerHTML = '<div class="empty-state">No matches found.</div>';
+                }
+
+            } catch (e) {
+                console.error('Search failed:', e);
+                responseSearchResults.innerHTML = `<div class="empty-state error">Search failed: ${e.message}</div>`;
+            } finally {
+                responseSearchBtn.disabled = false;
+                responseSearchBtn.textContent = 'Search';
+                if (fetchFresh) {
+                    setTimeout(() => {
+                        extractorProgress.style.display = 'none';
+                    }, 1000);
+                }
+            }
+        });
+    }
+
     // Helper: Render Pagination Controls
     function renderPagination(totalItems, currentPage, container, onPageChange) {
         if (!container) return;

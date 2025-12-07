@@ -516,6 +516,7 @@
                 <div class="extractor-tabs">
                     <button class="extractor-tab active" data-tab="secrets">Secrets</button>
                     <button class="extractor-tab" data-tab="endpoints">Endpoints</button>
+                    <button class="extractor-tab" data-tab="response-search">Response Search</button>
                 </div>
                 <div id="domain-filter-container" style="margin: 0 10px; display: none;">
                     <select id="domain-filter" class="domain-filter-select">
@@ -560,6 +561,35 @@
                         <strong>Note:</strong> Endpoint extraction uses pattern matching and may include some false
                         positives. Endpoints are sorted by confidence level.
                     </p>
+                </div>
+
+                <!-- Response Search Tab Content -->
+                <div id="tab-response-search" class="tab-content">
+                    <div class="search-controls"
+                        style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
+                        <div class="search-input-wrapper" style="flex: 1;">
+                            <input type="text" id="response-search-input" placeholder="Search in responses...">
+                            <button id="response-search-ai-btn" class="ai-toggle-inline" title="Generate Regex with AI"
+                                style="right: 32px;">
+                                <span>✨</span>
+                            </button>
+                            <button id="response-search-regex-btn" class="regex-toggle-inline"
+                                title="Toggle Regex Mode">
+                                <span class="regex-icon">.*</span>
+                            </button>
+                        </div>
+                        <label class="checkbox-label" title="Fetch fresh responses by replaying requests"
+                            style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 13px;">
+                            <input type="checkbox" id="response-search-fetch" checked>
+                            <span>Fetch Fresh</span>
+                        </label>
+                        <button id="response-search-btn" class="primary-btn" style="padding: 6px 16px;">Search</button>
+                    </div>
+
+                    <div id="response-search-results">
+                        <div class="empty-state">Enter a search term and click Search.</div>
+                    </div>
+                    <div id="response-search-pagination" class="pagination-container" style="display: none;"></div>
                 </div>
 
                 <div class="modal-footer" style="margin-top: 15px; display: flex; justify-content: flex-end;">

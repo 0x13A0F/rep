@@ -107,7 +107,8 @@ body {
     align-items: center;
 }
 
-#search-bar {
+#search-bar,
+#response-search-input {
     flex: 1;
     padding: 5px 35px 5px 8px;
     background: var(--input-bg);
@@ -116,9 +117,11 @@ body {
     border-radius: 4px;
     box-sizing: border-box;
     font-size: 12px;
+    width: 100%;
 }
 
-.regex-toggle-inline {
+.regex-toggle-inline,
+.ai-toggle-inline {
     position: absolute;
     right: 4px;
     background: transparent;
@@ -128,20 +131,30 @@ body {
     padding: 4px 6px;
     border-radius: 3px;
     font-size: 12px;
-    font-weight: 600;
-    transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.regex-toggle-inline:hover {
-    background: rgba(138, 180, 248, 0.1);
-    color: var(--accent-color);
+.ai-toggle-inline {
+    right: 32px;
+    /* Position to the left of regex toggle */
 }
 
-.regex-toggle-inline.active {
-    background: rgba(138, 180, 248, 0.2);
+.regex-toggle-inline {
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.regex-toggle-inline:hover,
+.ai-toggle-inline:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.regex-toggle-inline.active,
+.ai-toggle-inline.active {
+    background-color: rgba(138, 180, 248, 0.2);
     color: var(--accent-color);
 }
 
