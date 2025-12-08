@@ -145,13 +145,11 @@ Sponsorship helps me keep improving the extension, adding new features, and resp
 If **rep+ saved you time** during testing, development, or bug bounty work, please consider supporting the project.  
 **Every dollar helps. ❤️**
 
-<h3 align="center">Maintained by</h3>
+## Contributors 🤝
 
-<p align="center">
-  <a href="https://github.com/bscript">
-    <img src="https://avatars.githubusercontent.com/u/43368124?v=4&s=60" width="60" style="border-radius:50%;" alt="Maintainer"/>
-  </a>
-</p>
+<a href="https://github.com/bscript/rep/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=bscript/rep" alt="Contributors" />
+</a>
 
 ---
 
