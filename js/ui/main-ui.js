@@ -5,6 +5,8 @@ import { events, EVENT_NAMES } from '../core/events.js';
 import { filterRequests } from './request-list.js';
 import { selectRequest, switchRequestView, switchResponseView, toggleLayout } from './request-editor.js';
 import { updateHistoryButtons } from './ui-utils.js';
+import { generateHexView } from './hex-view.js';
+import { generateJsonView } from './json-view.js';
 
 // DOM Elements (initialized in initUI)
 export const elements = {};
@@ -17,6 +19,9 @@ export function initUI() {
     elements.useHttpsCheckbox = document.getElementById('use-https');
     elements.sendBtn = document.getElementById('send-btn');
     elements.rawResponseDisplay = document.getElementById('raw-response-display');
+    elements.rawResponseText = document.getElementById('raw-response-text');
+    elements.hexResponseDisplay = document.getElementById('res-hex-display');
+    elements.jsonResponseDisplay = document.getElementById('res-json-display');
     elements.resStatus = document.getElementById('res-status');
     elements.resTime = document.getElementById('res-time');
     elements.resSize = document.getElementById('res-size');
@@ -35,6 +40,7 @@ export function initUI() {
     elements.diffToggle = document.querySelector('.diff-toggle');
     elements.showDiffCheckbox = document.getElementById('show-diff');
     elements.toggleGroupsBtn = document.getElementById('toggle-groups-btn');
+    elements.toggleObjectsBtn = document.getElementById('toggle-objects-btn');
     elements.colorFilterBtn = document.getElementById('color-filter-btn');
 
     // Color Filter Logic
@@ -341,6 +347,14 @@ function setupEventListeners() {
             elements.rawResponseDisplay.style.display = 'block';
             elements.rawResponseDisplay.style.visibility = 'visible';
         }
+        if (elements.rawResponseText)
+            elements.rawResponseText.textContent = content;
+        if (elements.hexResponseDisplay)
+            elements.hexResponseDisplay.textContent = generateHexView(content);
+        if (elements.jsonResponseDisplay) {
+            elements.jsonResponseDisplay.innerHTML = '';
+            elements.jsonResponseDisplay.appendChild(generateJsonView(content));
+        }
     });
 
     // Get request content
@@ -432,4 +446,4 @@ function setupEventListeners() {
 export { renderRequestList, renderRequestItem, filterRequests, createRequestItemElement, createPageGroup, createDomainGroup } from './request-list.js';
 export { selectRequest, switchRequestView, switchResponseView, toggleLayout } from './request-editor.js';
 export { toggleStar, toggleGroupStar, setTimelineFilter, toggleAllGroups, getFilteredRequests, setRequestColor } from './request-actions.js';
-export { updateHistoryButtons, clearAllRequestsUI, setupResizeHandle, setupSidebarResize, setupContextMenu, setupUndoRedo, captureScreenshot, exportRequests, importRequests } from './ui-utils.js';
+export { updateHistoryButtons, clearAllRequestsUI, setupResizeHandle, toggleAllObjects, setupSidebarResize, setupContextMenu, setupUndoRedo, captureScreenshot, exportRequests, importRequests } from './ui-utils.js';
